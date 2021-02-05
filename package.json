@@ -1,0 +1,15 @@
+{
+  "name": "es_operations",
+  "version": "1.0.0",
+  "description": "Web app to access es content data.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node index.js"
+  },
+  "author": "AlphaArtrem",
+  "license": "ISC",
+  "dependencies": {
+    "bootstrap": "^5.0.0-beta1",
+    "express": "^4.17.1"
+  }
+}
