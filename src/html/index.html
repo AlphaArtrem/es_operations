@@ -2,18 +2,22 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=800, initial-scale=1">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-giJF6kkoqNQ00vy+HMDP7azOuL0xtbfIcaT9wjKHr8RbDVddVHyTfAAsrekwKmP1" crossorigin="anonymous">
     <title>ES OPERATIONS</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+    <link rel="stylesheet" type="text/css" href="../css/styles.css"/>
   </head>
   <body>
-    <nav class="navbar navbar-dark bg-dark">
+    <nav class="navbar navbar-dark bg-dark" style="width: 100%;">
       <div style="margin-left: 5%;">
         <h2 style="color: white;">ES OPERATIONS</h2>
       </div>
+      <form class="form-inline my-2 my-lg-0" style="margin-right: 5%;" id="share-btn">
+      </form>
     </nav>
-    <div style="padding: 1% 5% 1% 5%; background-color: #EBEBE8;">
+    <div style="padding: 1% 5% 1% 5%; background-color: #EBEBE8; width: 100%;">
       <div class="row">
         <div class="col-sm">
           <div class="row">
@@ -21,12 +25,9 @@
               Date:
             </div>
             <div class="col-sm-auto">
-              <select class="form-select form-select-sm" aria-label=".form-select-sm example" id="date">
-                <option selected>All Time</option>
-                <option value="Last Seven Days">Last Seven Days</option>
-                <option value="Last Weekend">Last Weekend</option>
-                <option value="Last Month">Last Month</option>
-              </select>
+              <div id="reportrange" style="background: #fff; cursor: pointer; padding: 3px 5px 3px 5px; border: 1px solid #ccc; border-radius: 5px; width: 160px; max-width: 100%;">
+                <span style="font-size: small;">Select Date</span> <i class="fa fa-caret-down"></i>
+              </div>            
             </div>
           </div>
         </div>
@@ -36,11 +37,8 @@
               Sport:
             </div>
             <div class="col-sm-auto">
-              <select class="form-select form-select-sm" aria-label=".form-select-sm example" id="sport">
+              <select class="form-select form-select-sm" aria-label=".form-select-sm example" id="sport" style="width: 150px;">
                 <option selected>All Sports</option>
-                <option value="F1">F1</option>
-                <option value="MMA">MMA</option>
-                <option value="UFC">UFC</option>
               </select>
             </div>
           </div>
@@ -51,11 +49,8 @@
               Entity:
             </div>
             <div class="col-sm-auto">
-              <select class="form-select form-select-sm" aria-label=".form-select-sm example" id="entity">
-                <option selected>Choose Entity</option>
-                <option value="Entity 1">Entity One</option>
-                <option value="Entity 2">Entity Two</option>
-                <option value="Entity 3">Entity Three</option>
+              <select class="form-select form-select-sm" aria-label=".form-select-sm example" id="entity" style="width: 150px;">
+                <option selected>All Entities</option>
               </select>
             </div>
           </div>
@@ -66,11 +61,8 @@
               Writer  :
             </div>
             <div class="col-sm-auto">
-              <select class="form-select form-select-sm" aria-label=".form-select-sm example" id="writer">
-                <option selected>Writer Name</option>
-                <option value="Writer 1">Writer One</option>
-                <option value="Writer 2">Writer Two</option>
-                <option value="Writer 3">Writer Three</option>
+              <select class="form-select form-select-sm" aria-label=".form-select-sm example" id="writer" style="width: 150px;">
+                <option selected>All Writers</option>
               </select>
             </div>
           </div>
@@ -78,30 +70,20 @@
         <div class="col-sm">
           <div class="row">
             <div class="col-sm-auto">
-              Published Time:
+              Start Time:
             </div>
-            <div class="col-sm-auto">
-              <select class="form-select form-select-sm" aria-label=".form-select-sm example" id="publishedTime">
-                <option selected>Choose Time</option>
-                <option value="Time 1">Time One</option>
-                <option value="Time 2">Time Two</option>
-                <option value="Time 3">Time Three</option>
-              </select>
+            <div class="col-sm-auto" >
+              <input type="time" id="start-time" name="appt" style="background: #fff; cursor: pointer; padding: 3px 5px 3px 5px; border: 1px solid #ccc; border-radius: 5px; width: 120px; max-width: 100%;">
             </div>
           </div>
         </div>
         <div class="col-sm">
           <div class="row">
             <div class="col-sm-auto">
-              Editor:
+              End Time:
             </div>
             <div class="col-sm-auto">
-              <select class="form-select form-select-sm" aria-label=".form-select-sm example" id="editor">
-                <option selected>Editor Name</option>
-                <option value="Editor 1">Editor One</option>
-                <option value="Editor 2">Editor Two</option>
-                <option value="Editor 3">Editor Three</option>
-              </select>
+              <input type="time" id="end-time" name="appt" style="background: #fff; cursor: pointer; padding: 3px 5px 3px 5px; border: 1px solid #ccc; border-radius: 5px; width: 120px; max-width: 100%;">
             </div>
           </div>
         </div>
@@ -111,11 +93,16 @@
           </div>
       </div>
     </div>
-    <div id = "filter-table" style="margin: 1% 5% 1% 5%; background-color: #EBEBE8; visibility: hidden;">
+    <div class="loader" id="loader"></div>
+    <div class="alert alert-danger" role="alert" id="error" style="margin: 0; visibility: hidden;">
+      You need to select a date.
+    </div>
+    <div id = "filter-table" style="margin: 1% 5% 1% 5%; background-color: #EBEBE8; visibility: hidden; width: 90%">
       <table class="table table-dark table-striped">
         <thead>
           <tr>
             <th scope="col">Date</th>
+            <th scope="col" style="width: 40%;">Article</th>
             <th scope="col">Sport</th>
             <th scope="col">Entity</th>
             <th scope="col">Writer</th>
@@ -128,7 +115,17 @@
         <tbody id="filter-table-body">
         </tbody>
       </table>
+      <nav>
+        <ul class="pagination justify-content-center" id="pagination">
+          <li class="page-item"><a class="page-link" href="#" onClick="getNextPage(-1)">Prev</a></li>
+          <li class="page-item"><a class="page-link" href="#" onClick="getNextPage(1)">Next</a></li>
+        </ul>
+      </nav>
     </div>
+    <div id="snackbar">Share link copied to clipboard.</div>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/jquery/latest/jquery.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
     <script src="../js/load.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-ygbV9kiqUc6oa4msXn9868pTtWMgiQaeYH7/t7LECLbyPA2x65Kgf80OJFdroafW" crossorigin="anonymous"></script>
   </body>
