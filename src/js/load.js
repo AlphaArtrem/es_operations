@@ -5,6 +5,7 @@ let currentIndex = 0;
 let lastIndices = [];
 
 currentQueryResult = null;
+dateCount = {};
 
 const removeFilter = (filterName) => {
     delete filterValues[filterName];
@@ -276,11 +277,12 @@ const showFilteredData = async (intialLoad = false) => {
     currentIndex = 0;
     lastIndices = [];
     document.getElementById("loader").style.display = "block";
-    document.getElementById("filter-table").style.visibility = "hidden";
+    document.getElementById("count-table").style.display = "none";
+    document.getElementById("filter-table").style.display = "none";
     if(!intialLoad){
         if(!("startTime" in filterValues) || !("endTime" in filterValues)){
             document.getElementById("loader").style.display = "none";
-            document.getElementById("filter-table").style.visibility = "hidden";
+            document.getElementById("filter-table").style.display = "none";
             document.getElementById("error").style = "margin: 1% 5% 1% 5%; visibility: visible";
             document.getElementById("error").innerHTML = "You need to select a date.";
             return;
@@ -337,8 +339,9 @@ const showFilteredData = async (intialLoad = false) => {
     }
     await fetch(url).then(response => response.json())
     .then( (result) => {
+        console.log(result)
         if("error" in result){
-            document.getElementById("filter-table").style.visibility = "hidden";
+            document.getElementById("filter-table").style.display = "none";
             document.getElementById("error").style = "margin: 1% 5% 1% 5%; visibility: visible";
             document.getElementById("error").innerHTML = error.error;
             console.log(result);
@@ -348,10 +351,12 @@ const showFilteredData = async (intialLoad = false) => {
             `<button class="btn btn-outline-success my-2 my-sm-0" onClick="return copyToClipboard('${shareURL}')">
             <i class="fa fa-copy"></i> Share Link</button>`;
             document.getElementById("error").style.display = "none";
-            document.getElementById("filter-table").style.visibility = "visible";
-            let tableData = document.getElementById("filter-table-body");
-            tableData.innerHTML = "";
             currentQueryResult = result.result.rows;
+            for(var row in result.count.rows){
+                var date = new Date(result.count.rows[row].date);
+                dateCount[date.toLocaleDateString()] = result.count.rows[row].count;
+            }
+            console.log(dateCount);
             getNextPage(1);
         }
     })
@@ -360,6 +365,7 @@ const showFilteredData = async (intialLoad = false) => {
 }
 
 let getNextPage = (direction) => {
+    currentDateCount = {}
     if((currentIndex >= currentQueryResult.length && direction == 1) || (currentIndex == 0 && direction == -1)){
         return;
     }
@@ -369,8 +375,11 @@ let getNextPage = (direction) => {
         start = ["00", "00"];
         end = ["23", "59"];
     }
-    document.getElementById("filter-table").style.visibility = "visible";
+    document.getElementById("filter-table").style.display = "block";
     let tableData = document.getElementById("filter-table-body");
+    document.getElementById("count-table").style.display = "block";
+    let countTableHead = document.getElementById("count-table-head");
+    let countTableData = document.getElementById("count-table-body");
     if(direction == -1){
         if(lastIndices.length > 1){
             lastIndices.pop();
@@ -388,6 +397,8 @@ let getNextPage = (direction) => {
         return;
     }
     tableData.innerHTML = "";
+    countTableData.innerHTML = "";
+    countTableHead.innerHTML = "";
     for(const data in result){
         if(resultCount === 50 || currentIndex + i >= currentQueryResult.length){
             currentIndex += i; 
@@ -421,9 +432,18 @@ let getNextPage = (direction) => {
             </tr>
             `;
             resultCount++;
+            currentDateCount[dateTime.toLocaleDateString()] = dateCount[dateTime.toLocaleDateString()];
         }
         i++;
     }
+
+    for(var date in currentDateCount){
+        countTableHead.innerHTML += `<th scope="col">${date}</th>`;
+        countTableData.innerHTML += `<td>${dateCount[date]}</td>`;
+    }
+
+    countTableHead.innerHTML += `<th scope="col">Total</th></tr>`;
+    countTableData.innerHTML += `<tr><td>${currentQueryResult.length}</td>`;
 }
 
 function setSelectedIndex(s, v) {

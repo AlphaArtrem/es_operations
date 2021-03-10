@@ -94,10 +94,24 @@
       </div>
     </div>
     <div class="loader" id="loader"></div>
-    <div class="alert alert-danger" role="alert" id="error" style="margin: 0; visibility: hidden;">
+    <div class="alert alert-danger" role="alert" id="error" style="margin: 0; display: none;">
       You need to select a date.
     </div>
-    <div id = "filter-table" style="margin: 1% 5% 1% 5%; background-color: #EBEBE8; visibility: hidden; width: 90%">
+    <div id = "count-table" style="margin: 1% 5% 1% 5%; background-color: #EBEBE8; display: none; width: 90%">
+      <table class="table table-dark table-striped">
+        <thead>
+          <tr id = "count-table-head">
+
+          </tr>
+        </thead>
+        <tbody>
+          <tr id = "count-table-body">
+
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div id = "filter-table" style="margin: 1% 5% 1% 5%; background-color: #EBEBE8; display: none; width: 90%">
       <table class="table table-dark table-striped">
         <thead>
           <tr>

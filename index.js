@@ -28,19 +28,19 @@ app.get('/articles', async (req,res) => {
     query = "SELECT * FROM es_articles_test WHERE ";
     if("sport" in req.query){
       if(req.query.sport !== "All Sports"){
-        query += `'${req.query.sport.replace(/_/g, " ")}' LIKE '%' || sports || '%' AND `;
+        query += `'${req.query.sport.replace(/_/g, " ")}' LIKE '%' || sports || '%' AND sports NOT IN ('') AND `;
       }
     }
   
     if("entity" in req.query){
       if(req.query.entity !== "All Entities"){
-        query += `'${req.query.entity.replace(/_/g, " ")}' LIKE '%' || entities || '%' AND `;
+        query += `'${req.query.entity.replace(/_/g, " ")}' LIKE '%' || entities || '%' AND entities NOT IN ('') AND `;
       }
     }
   
     if("writer" in req.query){
       if(req.query.writer !== "All Writers"){
-        query += `author = '${req.query.writer.replace(/_/g, " ")}' AND `;
+        query += `author = '${req.query.writer.replace(/_/g, " ")}' AND author NOT IN ('') AND `;
       }  
     }
   
@@ -64,14 +64,21 @@ app.get('/articles', async (req,res) => {
   console.log(query);
   client.query(query, function(err, result) {
     if(err) {
-      res.json({error : err });
+      res.json({error : err , query : query});
     }
-    res.json({result : result});
+    query = query.replace("SELECT * ", "SELECT COUNT(timestamp_ist), DATE(timestamp_ist)");
+    query = query.replace("ORDER BY timestamp_unix DESC", "GROUP BY DATE(timestamp_ist)");
+    client.query(query, function(err, count) {
+      if(err) {
+        res.json({error : err, query :query});
+      }
+      res.json({result : result, count : count});
+    });    
   });    
 });
 
 app.get('/sports', async (req,res) => {
-  const query = "SELECT sports FROM es_articles_test GROUP BY sports";
+  const query = "SELECT sports FROM es_articles_test GROUP BY sports ORDER BY sports ASC";
   client.query(query, function(err, result) {
     if(err) {
       res.json({error : err });
@@ -81,7 +88,7 @@ app.get('/sports', async (req,res) => {
 });
 
 app.get('/entities', async (req,res) => {
-  const query = `SELECT entities FROM es_articles_test WHERE sports = '${req.query.sport}' GROUP BY entities`;
+  const query = `SELECT entities FROM es_articles_test WHERE sports = '${req.query.sport}' GROUP BY entities ORDER BY entities ASC`;
   client.query(query, function(err, result) {
     if(err) {
       res.json({error : err });
@@ -91,7 +98,7 @@ app.get('/entities', async (req,res) => {
 });
 
 app.get('/writers', async (req,res) => {
-  const query = `SELECT author FROM es_articles_test GROUP BY author`;
+  const query = `SELECT author FROM es_articles_test GROUP BY author ORDER BY author ASC`;
   client.query(query, function(err, result) {
     if(err) {
       res.json({error : err });
