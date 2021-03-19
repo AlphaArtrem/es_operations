@@ -97,6 +97,20 @@
     <div class="alert alert-danger" role="alert" id="error" style="margin: 0; display: none;">
       You need to select a date.
     </div>
+    <div id = "aggregate-count-table" style="margin: 1% 5% 1% 5%; background-color: #EBEBE8; display: none; width: 90%">
+      <table class="table table-dark table-striped">
+        <thead>
+          <tr id = "aggregate-count-table-head">
+
+          </tr>
+        </thead>
+        <tbody>
+          <tr id = "aggregate-count-table-body">
+
+          </tr>
+        </tbody>
+      </table>
+    </div>
     <div id = "count-table" style="margin: 1% 5% 1% 5%; background-color: #EBEBE8; display: none; width: 90%">
       <table class="table table-dark table-striped">
         <thead>
@@ -104,10 +118,7 @@
 
           </tr>
         </thead>
-        <tbody>
-          <tr id = "count-table-body">
-
-          </tr>
+        <tbody id = "count-table-body">
         </tbody>
       </table>
     </div>
@@ -121,9 +132,10 @@
             <th scope="col">Entity</th>
             <th scope="col">Writer</th>
             <th scope="col">Published Time</th>
-            <th scope="col">Editor</th>
             <th scope="col">Word Count</th>
             <th scope="col">Video Count</th>
+            <th scope="col">Video Timestamp</th>
+            <th scope="col">Video Age</th>
           </tr>
         </thead>
         <tbody id="filter-table-body">

@@ -5,13 +5,30 @@ let currentIndex = 0;
 let lastIndices = [];
 
 currentQueryResult = null;
-dateCount = {};
+currentDates = null;
 
-const removeFilter = (filterName) => {
+const removeFilter = async (filterName) => {
+    if(filterName != 'end-time' && filterName != 'time'){
+        document.getElementById(filterName).options[0].selected = true;
+    }else{
+        document.getElementById(filters[3]).value = "";
+        document.getElementById(filters[4]).value = "";
+        filterName = 'time';
+    }
     delete filterValues[filterName];
     filterBubbles.innerHTML = "";
     for(let filter in filterValues){
         filterBubbles.innerHTML += filterValues[filter][1];
+    }
+    if(filterName === "entity"){
+        await fetchWriters({
+            url : `http://${window.location.host}/writers?sport=${document.getElementById('sport').value.replace(/ /g, '_')}`
+        });
+    }
+    if(filterName === "sport"){
+        await fetchWriters({
+            url : `http://${window.location.host}/writers?`
+        });
     }
     showFilteredData();
 };
@@ -85,15 +102,17 @@ $(function() {
     var end = moment();
 
     function cb(start, end) {
+        console.log(start);
+        console.log(end);
         buildFilterBubbles({
             key: 'startTime',
-            value: start._d.toISOString(),
+            value: start._d.toISOString().substring(0,8) + start._d.getDate() + start._d.toISOString().substring(10),
             reBuild: false,
             reFetch: false
         });
         buildFilterBubbles({
             key: 'endTime',
-            value: end._d.toISOString(),
+            value: end._d.toISOString().substring(0,8) + end._d.getDate() + end._d.toISOString().substring(10),
             text: start._d.toLocaleDateString() + ' - ' + end._d.toLocaleDateString(),
             removeKey : 'endTime'
         });
@@ -114,6 +133,46 @@ $(function() {
     }, cb);
 
 });
+
+const fetchWriters = async ({url}) => {
+    await fetch(url).then(response => response.json())
+    .then( (result) => {
+        if("error" in result){
+            console.log(result);
+        }else{
+            let foundWriters = {};
+            let writers = document.getElementById("writer");
+            writers.innerHTML = "<option selected>All Writers</option>";
+            for(const data in result.result.rows){
+                if(result.result.rows[data].author != ""){
+                    if(result.result.rows[data].author.includes(",")){
+                        const writerCur = result.result.rows[data].author.split(",");
+                        for(const index in writerCur){
+                            if(writerCur[index][0] == " "){
+                                const writer = writerCur[index].substring(1, writerCur[index].length);
+                                if(!(writer in foundWriters)){
+                                    writers.innerHTML += `<option value="${writer}">${writer}</option>`;
+                                    foundWriters[writer] = true;
+                                }
+                            }else{
+                                if(!(writerCur[index] in foundWriters)){
+                                    writers.innerHTML += `<option value="${writerCur[index]}">${writerCur[index]}</option>`;
+                                    foundWriters[writerCur[index]] = true;
+                                }
+                            }
+                        }
+                    }else{
+                        if(!(result.result.rows[data].author in foundWriters)){
+                            writers.innerHTML += `<option value="${result.result.rows[data].author}">${result.result.rows[data].author}</option>`;
+                            foundWriters[result.result.rows[data].author] = true;
+                        }
+                    }
+                }
+            }
+        }
+    })
+    .catch(error => console.log('error:', error));
+};
 
 const staticDropdownFetch = async () => {
     await fetch(`http://${window.location.host}/sports`).then(response => response.json())
@@ -154,43 +213,9 @@ const staticDropdownFetch = async () => {
     })
     .catch(error => console.log('error:', error));
 
-    await fetch(`http://${window.location.host}/writers`).then(response => response.json())
-    .then( (result) => {
-        if("error" in result){
-            console.log(result);
-        }else{
-            let foundWriters = {};
-            let writers = document.getElementById("writer");
-            writers.innerHTML = "<option selected>All Writers</option>";
-            for(const data in result.result.rows){
-                if(result.result.rows[data].author != ""){
-                    if(result.result.rows[data].author.includes(",")){
-                        const writerCur = result.result.rows[data].author.split(",");
-                        for(const index in writerCur){
-                            if(writerCur[index][0] == " "){
-                                const writer = writerCur[index].substring(1, writerCur[index].length);
-                                if(!(writer in foundWriters)){
-                                    writers.innerHTML += `<option value="${writer}">${writer}</option>`;
-                                    foundWriters[writer] = true;
-                                }
-                            }else{
-                                if(!(writerCur[index] in foundWriters)){
-                                    writers.innerHTML += `<option value="${writerCur[index]}">${writerCur[index]}</option>`;
-                                    foundWriters[writerCur[index]] = true;
-                                }
-                            }
-                        }
-                    }else{
-                        if(!(result.result.rows[data].author in foundWriters)){
-                            writers.innerHTML += `<option value="${result.result.rows[data].author}">${result.result.rows[data].author}</option>`;
-                            foundWriters[result.result.rows[data].author] = true;
-                        }
-                    }
-                }
-            }
-        }
-    })
-    .catch(error => console.log('error:', error));
+    await fetchWriters({
+        url : `http://${window.location.host}/writers`
+    });
 }
 
 staticDropdownFetch();
@@ -242,6 +267,9 @@ for(let i = 0; i < filters.length; i++){
                 text: filterDropdown.value,
                 removeKey : filters[i]
             });
+            await fetchWriters({
+                url : `http://${window.location.host}/writers?sport=${filterDropdown.value.replace(/ /g, '_')}`
+            });
         }else if(filters[i] == "start-time" || filters[i] == "end-time"){
             if(document.getElementById("start-time").value == '' || document.getElementById("end-time").value == ''){
                 return;
@@ -258,7 +286,7 @@ for(let i = 0; i < filters.length; i++){
             }
             buildFilterBubbles({
                 key: 'time',
-                value: filterDropdown.value,
+                value: document.getElementById("start-time").value + ' - ' + document.getElementById("end-time").value,
                 text: `${document.getElementById("start-time").value} - ${document.getElementById("end-time").value}`,
                 removeKey : filters[i]
             });
@@ -269,6 +297,11 @@ for(let i = 0; i < filters.length; i++){
                 text: filterDropdown.value,
                 removeKey : filters[i]
             });
+            if(filters[i] === "entity"){
+                await fetchWriters({
+                    url : `http://${window.location.host}/writers?sport=${document.getElementById('sport').value.replace(/ /g, '_')}&entity=${filterDropdown.value.replace(/ /g, '_')}`
+                });
+            }
         }
     });
 }
@@ -278,6 +311,7 @@ const showFilteredData = async (intialLoad = false) => {
     lastIndices = [];
     document.getElementById("loader").style.display = "block";
     document.getElementById("count-table").style.display = "none";
+    document.getElementById("aggregate-count-table").style.display = "none";
     document.getElementById("filter-table").style.display = "none";
     if(!intialLoad){
         if(!("startTime" in filterValues) || !("endTime" in filterValues)){
@@ -296,6 +330,22 @@ const showFilteredData = async (intialLoad = false) => {
     }
     let url = `http://${window.location.host}/articles?`;
     for(let filter in filterValues){
+        if(filter == 'startTime'){
+            let date = new Date(filterValues[filter][0]);
+            date.setHours(Number(start[0]));
+            date.setMinutes(Number(start[1]));
+            filterValues[filter][0] = date.toISOString().substring(0,11) + (date.getHours() < 10 ? ('0' + date.getHours() ): date.getHours()) 
+            + ":" + (date.getMinutes() < 10 ? ('0' + date.getMinutes() ): date.getMinutes()) + ':00.000Z';
+            console.log(filterValues[filter][0]);
+        }
+        if(filter == 'endTime'){
+            let date = new Date(filterValues[filter][0]);
+            date.setHours(Number(end[0]));
+            date.setMinutes(Number(end[1]));
+            filterValues[filter][0] = date.toISOString().substring(0,11) + (date.getHours() < 10 ? ('0' + date.getHours() ): date.getHours()) 
+            + ":" + (date.getMinutes() < 10 ? ('0' + date.getMinutes() ): date.getMinutes()) + ':59.000Z';
+            console.log(filterValues[filter][0]);
+        }
         url += filter + "=" + filterValues[filter][0].replace(/ /g, '_') + '&';
     }
     if(intialLoad){
@@ -303,6 +353,7 @@ const showFilteredData = async (intialLoad = false) => {
         if(urlParams.has("startTime")){
             await staticDropdownFetch();
             url = `http://${window.location.host}/articles?` + urlParams.toString();
+            url = url.replaceAll('%3A',':');
             urlParams.forEach(function(value, key) {
                 value = value.replace(/_/g, " ");
                 if(key == "startTime" || key == "endTime"){
@@ -310,17 +361,17 @@ const showFilteredData = async (intialLoad = false) => {
                     var end = new Date(urlParams.get("endTime"));
                     buildFilterBubbles({
                         key: 'startTime',
-                        value: start.toISOString(),
+                        value: start.toISOString().substring(0,8) + start.getDate() + start.toISOString().substring(10),
                         reBuild: false,
                         reFetch: false
                     });
                     buildFilterBubbles({
                         key: 'endTime',
-                        value: end.toISOString(),
+                        value: end.toISOString().substring(0,8) + end.getDate() + end.toISOString().substring(10),
                         text: start.toLocaleDateString() + ' - ' + end.toLocaleDateString(),
                         removeKey : 'endTime',
                         reFetch: false
-                    });
+                    });                  
                     $('#reportrange span').html(start.toLocaleDateString() + ' - ' + end.toLocaleDateString());
                 }else{
                     buildFilterBubbles({
@@ -330,16 +381,19 @@ const showFilteredData = async (intialLoad = false) => {
                         removeKey : key,
                         reFetch: false
                     });
-                    if(key in filters){
+                    if(key === 'time'){
+                        document.getElementById('start-time').value = value.substring(0,5);
+                        document.getElementById('end-time').value = value.substring(8,13);
+                    }else{
                         setSelectedIndex(document.getElementById(key), value);
                     }
                 }
             });
         }
     }
+    console.log(url);
     await fetch(url).then(response => response.json())
     .then( (result) => {
-        console.log(result)
         if("error" in result){
             document.getElementById("filter-table").style.display = "none";
             document.getElementById("error").style = "margin: 1% 5% 1% 5%; visibility: visible";
@@ -352,11 +406,53 @@ const showFilteredData = async (intialLoad = false) => {
             <i class="fa fa-copy"></i> Share Link</button>`;
             document.getElementById("error").style.display = "none";
             currentQueryResult = result.result.rows;
+            currentDates = result.count;
+            document.getElementById("count-table").style.display = "block";
+            let countTableHead = document.getElementById("count-table-head");
+            let countTableData = document.getElementById("count-table-body");
+            countTableHead.innerHTML = `<th scope="col">Tag</th>`;
+            countTableData.innerHTML = "";
+            let countTableBody = `<td>Total</td>`;
+            totalCount = 0;
+            var counts = {};
+            var dates = [];
+            var lastDate = null;
+            var startDate = null;
+            console.log(result.entities);
             for(var row in result.count.rows){
-                var date = new Date(result.count.rows[row].date);
-                dateCount[date.toLocaleDateString()] = result.count.rows[row].count;
+                var date = new Date(result.count.rows[row].date);  
+                dates.push(date.toLocaleDateString());
+                counts[date.toLocaleDateString()] = result.count.rows[row].count;       
+                if(lastDate == null || lastDate < date){
+                    lastDate = date;
+                } 
+                if(startDate == null || startDate > date){
+                    startDate = date;
+                }           
             }
-            console.log(dateCount);
+            for(var date = startDate; date <= lastDate; date.setDate(date.getDate() + 1)){
+                if(date.toLocaleDateString() in counts){
+                    countTableHead.innerHTML += `<th scope="col">${date.toLocaleDateString()}</th>`;
+                    countTableBody += `<td>${counts[date.toLocaleDateString()]}</td>`;
+                    totalCount += Number.parseInt(counts[date.toLocaleDateString()]);
+                }else{
+                    countTableHead.innerHTML += `<th scope="col">${date.toLocaleDateString()}</th>`;
+                    countTableBody += `<td>0</td>`;
+                }
+                if(startDate == lastDate){
+                    break;
+                }
+            }
+            countTableData.innerHTML = '<tr>' + countTableBody +'</tr>';
+            document.getElementById("aggregate-count-table").style.display = "block";
+            countTableHead = document.getElementById("aggregate-count-table-head");
+            countTableData = document.getElementById("aggregate-count-table-body");
+            countTableData.innerHTML = "";
+            countTableHead.innerHTML = "";
+            countTableHead.innerHTML = `<th scope="col">Total Videos</th></tr>` + countTableHead.innerHTML;
+            countTableData.innerHTML = `<td>${result.videocount.rows[0].sum}</td>` + countTableData.innerHTML;
+            countTableHead.innerHTML = `<th scope="col">Total Articles</th></tr>` + countTableHead.innerHTML;
+            countTableData.innerHTML = `<td>${totalCount}</td>` + countTableData.innerHTML;
             getNextPage(1);
         }
     })
@@ -365,7 +461,6 @@ const showFilteredData = async (intialLoad = false) => {
 }
 
 let getNextPage = (direction) => {
-    currentDateCount = {}
     if((currentIndex >= currentQueryResult.length && direction == 1) || (currentIndex == 0 && direction == -1)){
         return;
     }
@@ -377,9 +472,6 @@ let getNextPage = (direction) => {
     }
     document.getElementById("filter-table").style.display = "block";
     let tableData = document.getElementById("filter-table-body");
-    document.getElementById("count-table").style.display = "block";
-    let countTableHead = document.getElementById("count-table-head");
-    let countTableData = document.getElementById("count-table-body");
     if(direction == -1){
         if(lastIndices.length > 1){
             lastIndices.pop();
@@ -397,8 +489,6 @@ let getNextPage = (direction) => {
         return;
     }
     tableData.innerHTML = "";
-    countTableData.innerHTML = "";
-    countTableHead.innerHTML = "";
     for(const data in result){
         if(resultCount === 50 || currentIndex + i >= currentQueryResult.length){
             currentIndex += i; 
@@ -418,32 +508,41 @@ let getNextPage = (direction) => {
                 }
             }
 
+            let videoData = JSON.parse(result[data].youtube_videos_data);
+            let videoTimestamp = '', videoAge = '';
+            let curDate = dateTime;
+
+            for(let i = 0; i < videoData.length; i++){
+                var d = new Date(videoData[i].published_at);
+                videoTimestamp += `${d.toLocaleDateString() + ' ' + d.toLocaleTimeString()}, `
+                if((curDate - d) / (1000 * 60 * 60 * 24) <= 1){
+                    videoAge += `Fresh, `
+                }else{
+                    videoAge += `Old, `
+                }
+            }
+
+            videoTimestamp = videoTimestamp.substring(0, videoTimestamp.length - 2);
+            videoAge = videoAge.substring(0, videoAge.length - 2);
+
             tableData.innerHTML += `
             <tr>
                 <td>${dateTime.toLocaleDateString()}</td>
-                <td><a href='${result[data].article_url} target='_blank'>${result[data].article_title}</td>
+                <td><a href='${result[data].article_url}' target='_blank'>${result[data].article_title}</td>
                 <td>${result[data].sports}</td>
                 <td>${result[data].entities}</td>
                 <td>${result[data].author}</td>
                 <td>${dateTime.toLocaleTimeString()}</td>
-                <td>${result[data].editor}</td>
                 <td>${result[data].word_count}</td>
                 <td>${result[data].youtube_videos_count}</td>
+                <td>${videoTimestamp}</td>
+                <td>${videoAge}</td>
             </tr>
             `;
-            resultCount++;
-            currentDateCount[dateTime.toLocaleDateString()] = dateCount[dateTime.toLocaleDateString()];
+            resultCount++;        
         }
         i++;
     }
-
-    for(var date in currentDateCount){
-        countTableHead.innerHTML += `<th scope="col">${date}</th>`;
-        countTableData.innerHTML += `<td>${dateCount[date]}</td>`;
-    }
-
-    countTableHead.innerHTML += `<th scope="col">Total</th></tr>`;
-    countTableData.innerHTML += `<tr><td>${currentQueryResult.length}</td>`;
 }
 
 function setSelectedIndex(s, v) {
