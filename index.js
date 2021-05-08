@@ -28,13 +28,13 @@ app.get('/articles', async (req,res) => {
     query = "SELECT * FROM es_articles_test WHERE ";
     if("sport" in req.query){
       if(req.query.sport !== "All Sports"){
-        query += `'${req.query.sport.replace(/_/g, " ")}' LIKE '%' || sports || '%' AND sports NOT IN ('') AND `;
+        query += `sports LIKE '%${req.query.sport.replace(/_/g, " ")}%' AND sports NOT IN ('') AND `;
       }
     }
   
     if("entity" in req.query){
       if(req.query.entity !== "All Entities"){
-        query += `'${req.query.entity.replace(/_/g, " ")}' LIKE '%' || entities || '%' AND entities NOT IN ('') AND `;
+        query += `entities LIKE '%${req.query.entity.replace(/_/g, " ")}%' AND entities NOT IN ('') AND `;
       }
     }
   
@@ -47,10 +47,10 @@ app.get('/articles', async (req,res) => {
     if("startTime" in req.query && "endTime" in req.query){
       const start = new Date(req.query.startTime);
       const end = new Date(req.query.endTime);
-      start.setHours(start.getHours() + 5);
+      /*start.setHours(start.getHours() + 5);
       start.setMinutes(start.getMinutes() + 30);
       end.setHours(start.getHours() + 23);
-      end.setMinutes(start.getMinutes() + 59);
+      end.setMinutes(start.getMinutes() + 59);*/
       query += `timestamp_ist BETWEEN '${start.toISOString()}' AND '${end.toISOString()}' `;
     }
 
@@ -98,7 +98,23 @@ app.get('/entities', async (req,res) => {
 });
 
 app.get('/writers', async (req,res) => {
-  const query = `SELECT author FROM es_articles_test GROUP BY author ORDER BY author ASC`;
+  let query = `SELECT author FROM es_articles_test `;
+  if(Object.keys(req.query).length > 0){
+    query += 'WHERE ';
+    if("sport" in req.query){
+      if(req.query.sport !== "All Sports"){
+        query += `sports LIKE '%${req.query.sport.replace(/_/g, " ")}%' AND sports NOT IN ('') `;
+      }
+    }
+  
+    if("entity" in req.query){
+      if(req.query.entity !== "All Entities"){
+        query += `AND entities LIKE '%${req.query.entity.replace(/_/g, " ")}%' AND entities NOT IN ('') `;
+      }
+    }
+  }
+  query += 'GROUP BY author ORDER BY author ASC';
+  console.log(query);
   client.query(query, function(err, result) {
     if(err) {
       res.json({error : err });

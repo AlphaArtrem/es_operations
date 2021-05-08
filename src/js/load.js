@@ -5,13 +5,29 @@ let currentIndex = 0;
 let lastIndices = [];
 
 currentQueryResult = null;
-dateCount = {};
 
-const removeFilter = (filterName) => {
+const removeFilter = async (filterName) => {
+    if(filterName != 'end-time' && filterName != 'time'){
+        document.getElementById(filterName).options[0].selected = true;
+    }else{
+        document.getElementById(filters[3]).value = "";
+        document.getElementById(filters[4]).value = "";
+        filterName = 'time';
+    }
     delete filterValues[filterName];
     filterBubbles.innerHTML = "";
     for(let filter in filterValues){
         filterBubbles.innerHTML += filterValues[filter][1];
+    }
+    if(filterName === "entity"){
+        await fetchWriters({
+            url : `http://${window.location.host}/writers?sport=${document.getElementById('sport').value.replace(/ /g, '_')}`
+        });
+    }
+    if(filterName === "sport"){
+        await fetchWriters({
+            url : `http://${window.location.host}/writers?`
+        });
     }
     showFilteredData();
 };
@@ -115,6 +131,46 @@ $(function() {
 
 });
 
+const fetchWriters = async ({url}) => {
+    await fetch(url).then(response => response.json())
+    .then( (result) => {
+        if("error" in result){
+            console.log(result);
+        }else{
+            let foundWriters = {};
+            let writers = document.getElementById("writer");
+            writers.innerHTML = "<option selected>All Writers</option>";
+            for(const data in result.result.rows){
+                if(result.result.rows[data].author != ""){
+                    if(result.result.rows[data].author.includes(",")){
+                        const writerCur = result.result.rows[data].author.split(",");
+                        for(const index in writerCur){
+                            if(writerCur[index][0] == " "){
+                                const writer = writerCur[index].substring(1, writerCur[index].length);
+                                if(!(writer in foundWriters)){
+                                    writers.innerHTML += `<option value="${writer}">${writer}</option>`;
+                                    foundWriters[writer] = true;
+                                }
+                            }else{
+                                if(!(writerCur[index] in foundWriters)){
+                                    writers.innerHTML += `<option value="${writerCur[index]}">${writerCur[index]}</option>`;
+                                    foundWriters[writerCur[index]] = true;
+                                }
+                            }
+                        }
+                    }else{
+                        if(!(result.result.rows[data].author in foundWriters)){
+                            writers.innerHTML += `<option value="${result.result.rows[data].author}">${result.result.rows[data].author}</option>`;
+                            foundWriters[result.result.rows[data].author] = true;
+                        }
+                    }
+                }
+            }
+        }
+    })
+    .catch(error => console.log('error:', error));
+};
+
 const staticDropdownFetch = async () => {
     await fetch(`http://${window.location.host}/sports`).then(response => response.json())
     .then( (result) => {
@@ -154,43 +210,9 @@ const staticDropdownFetch = async () => {
     })
     .catch(error => console.log('error:', error));
 
-    await fetch(`http://${window.location.host}/writers`).then(response => response.json())
-    .then( (result) => {
-        if("error" in result){
-            console.log(result);
-        }else{
-            let foundWriters = {};
-            let writers = document.getElementById("writer");
-            writers.innerHTML = "<option selected>All Writers</option>";
-            for(const data in result.result.rows){
-                if(result.result.rows[data].author != ""){
-                    if(result.result.rows[data].author.includes(",")){
-                        const writerCur = result.result.rows[data].author.split(",");
-                        for(const index in writerCur){
-                            if(writerCur[index][0] == " "){
-                                const writer = writerCur[index].substring(1, writerCur[index].length);
-                                if(!(writer in foundWriters)){
-                                    writers.innerHTML += `<option value="${writer}">${writer}</option>`;
-                                    foundWriters[writer] = true;
-                                }
-                            }else{
-                                if(!(writerCur[index] in foundWriters)){
-                                    writers.innerHTML += `<option value="${writerCur[index]}">${writerCur[index]}</option>`;
-                                    foundWriters[writerCur[index]] = true;
-                                }
-                            }
-                        }
-                    }else{
-                        if(!(result.result.rows[data].author in foundWriters)){
-                            writers.innerHTML += `<option value="${result.result.rows[data].author}">${result.result.rows[data].author}</option>`;
-                            foundWriters[result.result.rows[data].author] = true;
-                        }
-                    }
-                }
-            }
-        }
-    })
-    .catch(error => console.log('error:', error));
+    await fetchWriters({
+        url : `http://${window.location.host}/writers`
+    });
 }
 
 staticDropdownFetch();
@@ -242,6 +264,9 @@ for(let i = 0; i < filters.length; i++){
                 text: filterDropdown.value,
                 removeKey : filters[i]
             });
+            await fetchWriters({
+                url : `http://${window.location.host}/writers?sport=${filterDropdown.value.replace(/ /g, '_')}`
+            });
         }else if(filters[i] == "start-time" || filters[i] == "end-time"){
             if(document.getElementById("start-time").value == '' || document.getElementById("end-time").value == ''){
                 return;
@@ -258,7 +283,7 @@ for(let i = 0; i < filters.length; i++){
             }
             buildFilterBubbles({
                 key: 'time',
-                value: filterDropdown.value,
+                value: document.getElementById("start-time").value + ' - ' + document.getElementById("end-time").value,
                 text: `${document.getElementById("start-time").value} - ${document.getElementById("end-time").value}`,
                 removeKey : filters[i]
             });
@@ -269,6 +294,11 @@ for(let i = 0; i < filters.length; i++){
                 text: filterDropdown.value,
                 removeKey : filters[i]
             });
+            if(filters[i] === "entity"){
+                await fetchWriters({
+                    url : `http://${window.location.host}/writers?sport=${document.getElementById('sport').value.replace(/ /g, '_')}&entity=${filterDropdown.value.replace(/ /g, '_')}`
+                });
+            }
         }
     });
 }
@@ -296,6 +326,18 @@ const showFilteredData = async (intialLoad = false) => {
     }
     let url = `http://${window.location.host}/articles?`;
     for(let filter in filterValues){
+        if(filter == 'startTime'){
+            var date = new Date(filterValues[filter][0]);
+            date.setHours(Number(start[0]) + ((-1 * Math.floor(date.getTimezoneOffset() / 60)) - 1));
+            date.setMinutes(Number(start[1]) + (-1 * Math.floor(date.getTimezoneOffset() % 60)));
+            filterValues[filter][0] = date.toISOString();
+        }
+        if(filter == 'endTime'){
+            var date = new Date(filterValues[filter][0]);
+            date.setHours(Number(end[0]) + ((-1 * Math.floor(date.getTimezoneOffset() / 60)) - 1));
+            date.setMinutes(Number(end[1]) + (-1 * Math.floor(date.getTimezoneOffset() % 60)));
+            filterValues[filter][0] = date.toISOString();
+        }
         url += filter + "=" + filterValues[filter][0].replace(/ /g, '_') + '&';
     }
     if(intialLoad){
@@ -320,7 +362,7 @@ const showFilteredData = async (intialLoad = false) => {
                         text: start.toLocaleDateString() + ' - ' + end.toLocaleDateString(),
                         removeKey : 'endTime',
                         reFetch: false
-                    });
+                    });                  
                     $('#reportrange span').html(start.toLocaleDateString() + ' - ' + end.toLocaleDateString());
                 }else{
                     buildFilterBubbles({
@@ -330,7 +372,10 @@ const showFilteredData = async (intialLoad = false) => {
                         removeKey : key,
                         reFetch: false
                     });
-                    if(key in filters){
+                    if(key === 'time'){
+                        document.getElementById('start-time').value = value.substring(0,5);
+                        document.getElementById('end-time').value = value.substring(8,13);
+                    }else{
                         setSelectedIndex(document.getElementById(key), value);
                     }
                 }
@@ -339,7 +384,6 @@ const showFilteredData = async (intialLoad = false) => {
     }
     await fetch(url).then(response => response.json())
     .then( (result) => {
-        console.log(result)
         if("error" in result){
             document.getElementById("filter-table").style.display = "none";
             document.getElementById("error").style = "margin: 1% 5% 1% 5%; visibility: visible";
@@ -352,11 +396,32 @@ const showFilteredData = async (intialLoad = false) => {
             <i class="fa fa-copy"></i> Share Link</button>`;
             document.getElementById("error").style.display = "none";
             currentQueryResult = result.result.rows;
+            document.getElementById("count-table").style.display = "block";
+            let countTableHead = document.getElementById("count-table-head");
+            let countTableData = document.getElementById("count-table-body");
+            countTableData.innerHTML = "";
+            countTableHead.innerHTML = "";
+            totalCount = 0;
+            var counts = {};
+            var dates = [];
             for(var row in result.count.rows){
-                var date = new Date(result.count.rows[row].date);
-                dateCount[date.toLocaleDateString()] = result.count.rows[row].count;
+                var date = new Date(result.count.rows[row].date);  
+                dates.push(date.toLocaleDateString());
+                counts[date.toLocaleDateString()] = result.count.rows[row].count;             
             }
-            console.log(dateCount);
+            var lastDate = new Date(filterValues['endTime'][0]);
+            for(var date = new Date(filterValues['startTime'][0]); date <= lastDate; date.setDate(date.getDate() + 1)){
+                if(date.toLocaleDateString() in counts){
+                    countTableHead.innerHTML += `<th scope="col">${date.toLocaleDateString()}</th>`;
+                    countTableData.innerHTML += `<td>${counts[date.toLocaleDateString()]}</td>`;
+                    totalCount += Number.parseInt(counts[date.toLocaleDateString()]);
+                }else{
+                    countTableHead.innerHTML += `<th scope="col">${date.toLocaleDateString()}</th>`;
+                    countTableData.innerHTML += `<td>0</td>`;
+                }
+            }
+            countTableHead.innerHTML = `<th scope="col">Total</th></tr>` + countTableHead.innerHTML;
+            countTableData.innerHTML = `<td>${totalCount}</td>` + countTableData.innerHTML;
             getNextPage(1);
         }
     })
@@ -365,7 +430,6 @@ const showFilteredData = async (intialLoad = false) => {
 }
 
 let getNextPage = (direction) => {
-    currentDateCount = {}
     if((currentIndex >= currentQueryResult.length && direction == 1) || (currentIndex == 0 && direction == -1)){
         return;
     }
@@ -377,9 +441,6 @@ let getNextPage = (direction) => {
     }
     document.getElementById("filter-table").style.display = "block";
     let tableData = document.getElementById("filter-table-body");
-    document.getElementById("count-table").style.display = "block";
-    let countTableHead = document.getElementById("count-table-head");
-    let countTableData = document.getElementById("count-table-body");
     if(direction == -1){
         if(lastIndices.length > 1){
             lastIndices.pop();
@@ -397,8 +458,6 @@ let getNextPage = (direction) => {
         return;
     }
     tableData.innerHTML = "";
-    countTableData.innerHTML = "";
-    countTableHead.innerHTML = "";
     for(const data in result){
         if(resultCount === 50 || currentIndex + i >= currentQueryResult.length){
             currentIndex += i; 
@@ -421,7 +480,7 @@ let getNextPage = (direction) => {
             tableData.innerHTML += `
             <tr>
                 <td>${dateTime.toLocaleDateString()}</td>
-                <td><a href='${result[data].article_url} target='_blank'>${result[data].article_title}</td>
+                <td><a href='${result[data].article_url}' target='_blank'>${result[data].article_title}</td>
                 <td>${result[data].sports}</td>
                 <td>${result[data].entities}</td>
                 <td>${result[data].author}</td>
@@ -431,19 +490,10 @@ let getNextPage = (direction) => {
                 <td>${result[data].youtube_videos_count}</td>
             </tr>
             `;
-            resultCount++;
-            currentDateCount[dateTime.toLocaleDateString()] = dateCount[dateTime.toLocaleDateString()];
+            resultCount++;        
         }
         i++;
     }
-
-    for(var date in currentDateCount){
-        countTableHead.innerHTML += `<th scope="col">${date}</th>`;
-        countTableData.innerHTML += `<td>${dateCount[date]}</td>`;
-    }
-
-    countTableHead.innerHTML += `<th scope="col">Total</th></tr>`;
-    countTableData.innerHTML += `<tr><td>${currentQueryResult.length}</td>`;
 }
 
 function setSelectedIndex(s, v) {
