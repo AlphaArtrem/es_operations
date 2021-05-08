@@ -31,19 +31,19 @@ app.get('/articles', async (req,res) => {
         query += `sports LIKE '%${req.query.sport.replace(/_/g, " ")}%' AND sports NOT IN ('') AND `;
       }
     }
-  
+
     if("entity" in req.query){
       if(req.query.entity !== "All Entities"){
         query += `entities LIKE '%${req.query.entity.replace(/_/g, " ")}%' AND entities NOT IN ('') AND `;
       }
     }
-  
+
     if("writer" in req.query){
       if(req.query.writer !== "All Writers"){
         query += `author = '${req.query.writer.replace(/_/g, " ")}' AND author NOT IN ('') AND `;
-      }  
+      }
     }
-  
+
     if("startTime" in req.query && "endTime" in req.query){
       const start = new Date(req.query.startTime);
       const end = new Date(req.query.endTime);
@@ -66,15 +66,32 @@ app.get('/articles', async (req,res) => {
     if(err) {
       res.json({error : err , query : query});
     }
-    query = query.replace("SELECT * ", "SELECT COUNT(timestamp_ist), DATE(timestamp_ist)");
+    query = query.replace("SELECT * ", "SELECT COUNT(timestamp_ist), DATE(timestamp_ist) ");
     query = query.replace("ORDER BY timestamp_unix DESC", "GROUP BY DATE(timestamp_ist)");
+    console.log(query);
     client.query(query, function(err, count) {
       if(err) {
         res.json({error : err, query :query});
       }
-      res.json({result : result, count : count});
-    });    
-  });    
+      let newQuery = query.replace("SELECT COUNT(timestamp_ist), DATE(timestamp_ist)", "SELECT SUM(youtube_videos_count) ");
+      newQuery = newQuery.replace("GROUP BY DATE(timestamp_ist)", "");
+      console.log(newQuery);
+      client.query(newQuery, function(err, videocount) {
+        if(err) {
+          res.json({error : err, query :newQuery});
+        }
+        query = query.replace("SELECT COUNT(timestamp_ist), DATE(timestamp_ist)", "SELECT COUNT(entities), entities , DATE(timestamp_ist)");
+        query = query.replace("GROUP BY DATE(timestamp_ist)", "GROUP BY entities, DATE(timestamp_ist)");
+        console.log(query);
+        client.query(query, function(err, entities) {
+          if(err) {
+            res.json({error : err, query :query});
+          }
+          res.json({result : result, count : count, videocount : videocount, entities : entities});
+        });
+      });
+    });
+  });
 });
 
 app.get('/sports', async (req,res) => {
@@ -84,7 +101,7 @@ app.get('/sports', async (req,res) => {
       res.json({error : err });
     }
     res.json({result : result});
-  });    
+  });
 });
 
 app.get('/entities', async (req,res) => {
@@ -94,7 +111,7 @@ app.get('/entities', async (req,res) => {
       res.json({error : err });
     }
     res.json({result : result});
-  });    
+  });
 });
 
 app.get('/writers', async (req,res) => {
@@ -106,7 +123,7 @@ app.get('/writers', async (req,res) => {
         query += `sports LIKE '%${req.query.sport.replace(/_/g, " ")}%' AND sports NOT IN ('') `;
       }
     }
-  
+
     if("entity" in req.query){
       if(req.query.entity !== "All Entities"){
         query += `AND entities LIKE '%${req.query.entity.replace(/_/g, " ")}%' AND entities NOT IN ('') `;
@@ -114,13 +131,12 @@ app.get('/writers', async (req,res) => {
     }
   }
   query += 'GROUP BY author ORDER BY author ASC';
-  console.log(query);
   client.query(query, function(err, result) {
     if(err) {
       res.json({error : err });
     }
     res.json({result : result});
-  });    
+  });
 });
 
 //add the router

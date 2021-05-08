@@ -5,6 +5,7 @@ let currentIndex = 0;
 let lastIndices = [];
 
 currentQueryResult = null;
+currentDates = null;
 
 const removeFilter = async (filterName) => {
     if(filterName != 'end-time' && filterName != 'time'){
@@ -101,15 +102,17 @@ $(function() {
     var end = moment();
 
     function cb(start, end) {
+        console.log(start);
+        console.log(end);
         buildFilterBubbles({
             key: 'startTime',
-            value: start._d.toISOString(),
+            value: start._d.toISOString().substring(0,8) + start._d.getDate() + start._d.toISOString().substring(10),
             reBuild: false,
             reFetch: false
         });
         buildFilterBubbles({
             key: 'endTime',
-            value: end._d.toISOString(),
+            value: end._d.toISOString().substring(0,8) + end._d.getDate() + end._d.toISOString().substring(10),
             text: start._d.toLocaleDateString() + ' - ' + end._d.toLocaleDateString(),
             removeKey : 'endTime'
         });
@@ -308,6 +311,7 @@ const showFilteredData = async (intialLoad = false) => {
     lastIndices = [];
     document.getElementById("loader").style.display = "block";
     document.getElementById("count-table").style.display = "none";
+    document.getElementById("aggregate-count-table").style.display = "none";
     document.getElementById("filter-table").style.display = "none";
     if(!intialLoad){
         if(!("startTime" in filterValues) || !("endTime" in filterValues)){
@@ -327,16 +331,20 @@ const showFilteredData = async (intialLoad = false) => {
     let url = `http://${window.location.host}/articles?`;
     for(let filter in filterValues){
         if(filter == 'startTime'){
-            var date = new Date(filterValues[filter][0]);
-            date.setHours(Number(start[0]) + ((-1 * Math.floor(date.getTimezoneOffset() / 60)) - 1));
-            date.setMinutes(Number(start[1]) + (-1 * Math.floor(date.getTimezoneOffset() % 60)));
-            filterValues[filter][0] = date.toISOString();
+            let date = new Date(filterValues[filter][0]);
+            date.setHours(Number(start[0]));
+            date.setMinutes(Number(start[1]));
+            filterValues[filter][0] = date.toISOString().substring(0,11) + (date.getHours() < 10 ? ('0' + date.getHours() ): date.getHours())
+            + ":" + (date.getMinutes() < 10 ? ('0' + date.getMinutes() ): date.getMinutes()) + ':00.000Z';
+            console.log(filterValues[filter][0]);
         }
         if(filter == 'endTime'){
-            var date = new Date(filterValues[filter][0]);
-            date.setHours(Number(end[0]) + ((-1 * Math.floor(date.getTimezoneOffset() / 60)) - 1));
-            date.setMinutes(Number(end[1]) + (-1 * Math.floor(date.getTimezoneOffset() % 60)));
-            filterValues[filter][0] = date.toISOString();
+            let date = new Date(filterValues[filter][0]);
+            date.setHours(Number(end[0]));
+            date.setMinutes(Number(end[1]));
+            filterValues[filter][0] = date.toISOString().substring(0,11) + (date.getHours() < 10 ? ('0' + date.getHours() ): date.getHours())
+            + ":" + (date.getMinutes() < 10 ? ('0' + date.getMinutes() ): date.getMinutes()) + ':59.000Z';
+            console.log(filterValues[filter][0]);
         }
         url += filter + "=" + filterValues[filter][0].replace(/ /g, '_') + '&';
     }
@@ -345,6 +353,7 @@ const showFilteredData = async (intialLoad = false) => {
         if(urlParams.has("startTime")){
             await staticDropdownFetch();
             url = `http://${window.location.host}/articles?` + urlParams.toString();
+            url = url.replaceAll('%3A',':');
             urlParams.forEach(function(value, key) {
                 value = value.replace(/_/g, " ");
                 if(key == "startTime" || key == "endTime"){
@@ -352,17 +361,17 @@ const showFilteredData = async (intialLoad = false) => {
                     var end = new Date(urlParams.get("endTime"));
                     buildFilterBubbles({
                         key: 'startTime',
-                        value: start.toISOString(),
+                        value: start.toISOString().substring(0,8) + start.getDate() + start.toISOString().substring(10),
                         reBuild: false,
                         reFetch: false
                     });
                     buildFilterBubbles({
                         key: 'endTime',
-                        value: end.toISOString(),
+                        value: end.toISOString().substring(0,8) + end.getDate() + end.toISOString().substring(10),
                         text: start.toLocaleDateString() + ' - ' + end.toLocaleDateString(),
                         removeKey : 'endTime',
                         reFetch: false
-                    });                  
+                    });
                     $('#reportrange span').html(start.toLocaleDateString() + ' - ' + end.toLocaleDateString());
                 }else{
                     buildFilterBubbles({
@@ -382,6 +391,7 @@ const showFilteredData = async (intialLoad = false) => {
             });
         }
     }
+    console.log(url);
     await fetch(url).then(response => response.json())
     .then( (result) => {
         if("error" in result){
@@ -391,36 +401,64 @@ const showFilteredData = async (intialLoad = false) => {
             console.log(result);
         }else{
             const shareURL = url.replace(`http://${window.location.host}/articles?`, `http://${window.location.host}/?`);
-            document.getElementById("share-btn").innerHTML = 
+            document.getElementById("share-btn").innerHTML =
             `<button class="btn btn-outline-success my-2 my-sm-0" onClick="return copyToClipboard('${shareURL}')">
             <i class="fa fa-copy"></i> Share Link</button>`;
             document.getElementById("error").style.display = "none";
             currentQueryResult = result.result.rows;
+            currentDates = result.count;
             document.getElementById("count-table").style.display = "block";
             let countTableHead = document.getElementById("count-table-head");
             let countTableData = document.getElementById("count-table-body");
+            countTableHead.innerHTML = `<th scope="col">Tag</th>`;
             countTableData.innerHTML = "";
-            countTableHead.innerHTML = "";
+            let countTableBody = `<td>Total</td>`;
             totalCount = 0;
             var counts = {};
             var dates = [];
+            var lastDate = null;
+            var startDate = null;
+            console.log(result.entities);
+            console.log(countTableData.innerHTML)
             for(var row in result.count.rows){
-                var date = new Date(result.count.rows[row].date);  
+                var date = new Date(result.count.rows[row].date);
                 dates.push(date.toLocaleDateString());
-                counts[date.toLocaleDateString()] = result.count.rows[row].count;             
+                counts[date.toLocaleDateString()] = result.count.rows[row].count;
+                if(lastDate == null || lastDate < date){
+                    lastDate = date;
+                }
+                if(startDate == null || startDate > date){
+                    startDate = date;
+                }
             }
-            var lastDate = new Date(filterValues['endTime'][0]);
-            for(var date = new Date(filterValues['startTime'][0]); date <= lastDate; date.setDate(date.getDate() + 1)){
+            console.log("dgdsg");
+            console.log(startDate);
+            console.log(lastDate);
+            for(var date = startDate; date <= lastDate; date.setDate(date.getDate() + 1)){
+                console.log("llop")
                 if(date.toLocaleDateString() in counts){
                     countTableHead.innerHTML += `<th scope="col">${date.toLocaleDateString()}</th>`;
-                    countTableData.innerHTML += `<td>${counts[date.toLocaleDateString()]}</td>`;
+                    countTableBody += `<td>${counts[date.toLocaleDateString()]}</td>`;
                     totalCount += Number.parseInt(counts[date.toLocaleDateString()]);
                 }else{
                     countTableHead.innerHTML += `<th scope="col">${date.toLocaleDateString()}</th>`;
-                    countTableData.innerHTML += `<td>0</td>`;
+                    countTableBody += `<td>0</td>`;
+                }
+                if(startDate == lastDate){
+                    break;
                 }
             }
-            countTableHead.innerHTML = `<th scope="col">Total</th></tr>` + countTableHead.innerHTML;
+            console.log("countTable");
+            console.log(countTableBody)
+            countTableData.innerHTML = '<tr>' + countTableBody +'</tr>';
+            document.getElementById("aggregate-count-table").style.display = "block";
+            countTableHead = document.getElementById("aggregate-count-table-head");
+            countTableData = document.getElementById("aggregate-count-table-body");
+            countTableData.innerHTML = "";
+            countTableHead.innerHTML = "";
+            countTableHead.innerHTML = `<th scope="col">Total Videos</th></tr>` + countTableHead.innerHTML;
+            countTableData.innerHTML = `<td>${result.videocount.rows[0].sum}</td>` + countTableData.innerHTML;
+            countTableHead.innerHTML = `<th scope="col">Total Articles</th></tr>` + countTableHead.innerHTML;
             countTableData.innerHTML = `<td>${totalCount}</td>` + countTableData.innerHTML;
             getNextPage(1);
         }
@@ -460,7 +498,7 @@ let getNextPage = (direction) => {
     tableData.innerHTML = "";
     for(const data in result){
         if(resultCount === 50 || currentIndex + i >= currentQueryResult.length){
-            currentIndex += i; 
+            currentIndex += i;
             break;
         }
         const dateTime = new Date(result[data].timestamp_ist);
@@ -477,6 +515,23 @@ let getNextPage = (direction) => {
                 }
             }
 
+            let videoData = JSON.parse(result[data].youtube_videos_data);
+            let videoTimestamp = '', videoAge = '';
+            let curDate = dateTime;
+
+            for(let i = 0; i < videoData.length; i++){
+                var d = new Date(videoData[i].published_at);
+                videoTimestamp += `${d.toLocaleDateString() + ' ' + d.toLocaleTimeString()}, `
+                if((curDate - d) / (1000 * 60 * 60 * 24) <= 1){
+                    videoAge += `Fresh, `
+                }else{
+                    videoAge += `Old, `
+                }
+            }
+
+            videoTimestamp = videoTimestamp.substring(0, videoTimestamp.length - 2);
+            videoAge = videoAge.substring(0, videoAge.length - 2);
+
             tableData.innerHTML += `
             <tr>
                 <td>${dateTime.toLocaleDateString()}</td>
@@ -485,12 +540,13 @@ let getNextPage = (direction) => {
                 <td>${result[data].entities}</td>
                 <td>${result[data].author}</td>
                 <td>${dateTime.toLocaleTimeString()}</td>
-                <td>${result[data].editor}</td>
                 <td>${result[data].word_count}</td>
                 <td>${result[data].youtube_videos_count}</td>
+                <td>${videoTimestamp}</td>
+                <td>${videoAge}</td>
             </tr>
             `;
-            resultCount++;        
+            resultCount++;
         }
         i++;
     }
@@ -504,6 +560,5 @@ function setSelectedIndex(s, v) {
         }
     }
 }
-
 
 showFilteredData(true);
